@@ -1,1 +1,9 @@
-
+==========Particle Analysis Physics Simulation Tool==========
+Macroscopic Objects
+∟ Particle in 1 dimension
+∟ Particle in 2 dimensions
+∟ Particle in 3 dimensions
+∟ 1 dimensional collisions
+Microscopic Objects
+∟ Electron (using Bohr's atomic model, in H-like atoms)
+∟ Photons (study of the photoelectric effect)
