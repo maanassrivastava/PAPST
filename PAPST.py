@@ -1,10 +1,32 @@
 #Particle Analysis Physics Simulation Tool
+import math
 import tkinter as tk
 from tkinter import messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
+import numpy as np
+INFO_DB = {
+    "pos": ("Final Position & Displacement", "Position vector locates the particle at time t_f. Displacement vector represents the straight-line change from initial to final position.", "r_f = r_0 + v_0·Δt + ½·a·(Δt)² | Δr = r_f - r_0", "Displacement is like drawing a straight arrow from start to finish on a map, regardless of the path taken."),
+    "vel": ("Velocity & Average Velocity", "Final velocity is instantaneous speed and direction at t_f. Average velocity is total displacement divided by total elapsed time.", "v_f = v_0 + a·Δt | v_avg = Δr / Δt = ½(v_0 + v_f)", "Your speedometer shows instantaneous velocity, while your total trip distance divided by time gives average velocity."),
+    "acc": ("Acceleration", "Rate of change of velocity over time. In this module, acceleration is treated as constant.", "a_f = a_0 = Constant", "Pushing down on the gas pedal at a steady rate provides constant acceleration."),
+    "force": ("Net Force", "The overall vector force acting on the particle, derived from Newton's Second Law.", "F_net = m · a", "How hard you need to push a object to accelerate it—heavier objects require proportionally more force."),
+    "impulse": ("Impulse", "The cumulative effect of a force acting over time, which equals the total change in linear momentum.", "J = F_net · Δt = Δp = m · (v_f - v_0)", "Follow-through in sports like tennis or golf increases impulse by extending contact time with the ball."),
+    "momentum": ("Net Linear Momentum", "Quantity of motion possessed by the particle due to its mass and final velocity.", "p = m · v_f", "A heavy freight train at 10 km/h has vastly more momentum than a cricket ball at 100 km/h because of its mass."),
+    "ke": ("Kinetic Energy (Initial & Final)", "Scalar mechanical energy possessed by the particle due to its speed.", "KE_i = ½·m·|v_0|² | KE_f = ½·m·|v_f|²", "Speeding up from 20 km/h to 40 km/h requires 4x more kinetic energy because energy scales with velocity squared."),
+    "work": ("Work Done (Change in KE)", "Energy transferred to or from the particle by the net force, governed by the Work-Energy Theorem.", "W = ΔKE = KE_f - KE_i = F_net · Δr", "Pushing a stalled car forwards does positive work, increasing its kinetic energy."),
+    "power": ("Power (Final & Average)", "Rate at which work is performed or energy is transferred per unit time.", "P_f = F_net · v_f | P_avg = W / Δt", "A high-horsepower sports car transfers the same energy as a economy car, but does it in a fraction of the time."),
+    "collision": ("1D Particle Collision & Restitution", "Conservation of linear momentum applies to all isolated collisions. The coefficient of restitution (e) measures elasticity.", "v1f = [(m1 - e·m2)v1i + m2(1+e)v2i] / (m1 + m2)\nv2f = [m1(1+e)v1i + (m2 - e·m1)v2i] / (m1 + m2)", "e = 1 means perfectly elastic (billiard balls, no KE lost); e = 0 means perfectly inelastic (two lumps of clay sticking together).")
+}
+def show_info(concept_key):
+    if concept_key not in INFO_DB: return
+    name, defn, formula, analogy = INFO_DB[concept_key]
+    win = tk.Toplevel()
+    win.title(f"Concept Info: {name}")
+    ttk.Label(win, text=name).pack()
+    ttk.Label(win, text=f"Definition:\n{defn}\n\nFormula:\n{formula}\n\nAnalogy:\n{analogy}", wraplength=400, justify="left").pack()
+    ttk.Button(win, text="Close", command=win.destroy).pack()
 class PAPSTApp:
-    def _init_(self, root):
+    def __init__(self, root):
         self.root = root
         self.root.title("PAPST")
         self.container = ttk.Frame(self.root)
@@ -113,6 +135,56 @@ class PAPSTApp:
         sim_trigger_frame.pack(fill="x")
         self.btn_sim = ttk.Button(sim_trigger_frame, text="Simulation", state="disabled", command=self.open_simulation_window)
         self.btn_sim.pack(side="right")
+    def parse_inputs(self):
+        dim = self.current_dim
+        r0 = np.array([float(self.entries["r0"][i].get()) for i in range(dim)])
+        v0 = np.array([float(self.entries["v0"][i].get()) for i in range(dim)])
+        a0 = np.array([float(self.entries["a0"][i].get()) for i in range(dim)])
+        t0 = float(self.entries["t0"].get())
+        tf = float(self.entries["tf"].get())
+        m_str = self.entries["m"].get().strip()
+        if not m_str: raise ValueError("Please input the mass m.")
+        m = float(m_str)
+        if m <= 0: raise ValueError("Mass m must be positive.")
+        if tf <= t0: raise ValueError("Final time t_f can not be smaller than t₀.")
+        return r0, v0, a0, t0, tf, m
+    def calculate_kinematics(self):
+        try:
+            r0, v0, a0, t0, tf, m = self.parse_inputs()
+            dt = tf - t0
+            rf = r0 + v0 * dt + 0.5 * a0 * (dt**2)
+            disp = rf - r0
+            vf = v0 + a0 * dt
+            v_avg = disp / dt
+            af = a0
+            F_net = m * af
+            impulse = F_net * dt
+            p_net = m * vf
+            ke_i = 0.5 * m * np.sum(v0**2)
+            ke_f = 0.5 * m * np.sum(vf**2)
+            work = ke_f - ke_i
+            p_f = np.dot(F_net, vf)
+            p_avg = work / dt
+            def fmt_vec(v, unit):
+                if self.current_dim == 1: return f"{v[0]:.2f} {unit}"
+                elif self.current_dim == 2: return f"({v[0]:.2f}, {v[1]:.2f}) {unit}"
+                else: return f"({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f}) {unit}"
+            self.out_labels["pos_1"].config(text=f"Final Position (r_f): {fmt_vec(rf, 'm')}")
+            self.out_labels["pos_2"].config(text=f"Displacement (Δr):    {fmt_vec(disp, 'm')}")
+            self.out_labels["vel_1"].config(text=f"Final Velocity (v_f): {fmt_vec(vf, 'm/s')}")
+            self.out_labels["vel_2"].config(text=f"Average Velocity (v_avg): {fmt_vec(v_avg, 'm/s')}")
+            self.out_labels["acc_1"].config(text=f"Final Acceleration (a_f): {fmt_vec(af, 'm/s²')}")
+            self.out_labels["force_1"].config(text=f"Net Force (F_net):    {fmt_vec(F_net, 'N')}")
+            self.out_labels["impulse_1"].config(text=f"Impulse (J):          {fmt_vec(impulse, 'N·s')}")
+            self.out_labels["momentum_1"].config(text=f"Net Linear Momentum:  {fmt_vec(p_net, 'kg·m/s')}")
+            self.out_labels["ke_1"].config(text=f"Initial KE (KE_i):    {ke_i:.2f} J")
+            self.out_labels["ke_2"].config(text=f"Final KE (KE_f):      {ke_f:.2f} J")
+            self.out_labels["work_1"].config(text=f"Work Done (W):        {work:.2f} J")
+            self.out_labels["power_1"].config(text=f"Final Power (P_f):    {p_f:.2f} W")
+            self.out_labels["power_2"].config(text=f"Average Power (P_avg): {p_avg:.2f} W")
+            self.btn_sim.config(state="normal")
+            self.calc_data = (r0, v0, a0, t0, tf)
+        except ValueError as e: messagebox.showerror("Error", str(e))
     def show_collision_screen(self):
         self.clear_container()
         hdr_frame = ttk.Frame(self.container)
@@ -238,7 +310,7 @@ class PAPSTApp:
         ttk.Button(f_inputs, text="Apply", command=apply_col_sim_window).pack(side="left")
         slider.config(command=update_track_plot)
         apply_col_sim_window()
-if _name_ == "_main_":
+if __name__ == "__main__":
     root = tk.Tk()
     app = PAPSTApp(root)
     root.mainloop()
