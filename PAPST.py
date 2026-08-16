@@ -5,6 +5,7 @@ from tkinter import messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+
 INFO_DB = {
     "pos": ("Final Position & Displacement", "Position vector locates the particle at time t_f. Displacement vector represents the straight-line change from initial to final position.", "r_f = r_0 + v_0·Δt + ½·a·(Δt)² | Δr = r_f - r_0", "Displacement is like drawing a straight arrow from start to finish on a map, regardless of the path taken."),
     "vel": ("Velocity & Average Velocity", "Final velocity is instantaneous speed and direction at t_f. Average velocity is total displacement divided by total elapsed time.", "v_f = v_0 + a·Δt | v_avg = Δr / Δt = ½(v_0 + v_f)", "Your speedometer shows instantaneous velocity, while your total trip distance divided by time gives average velocity."),
@@ -17,6 +18,7 @@ INFO_DB = {
     "power": ("Power (Final & Average)", "Rate at which work is performed or energy is transferred per unit time.", "P_f = F_net · v_f | P_avg = W / Δt", "A high-horsepower sports car transfers the same energy as a economy car, but does it in a fraction of the time."),
     "collision": ("1D Particle Collision & Restitution", "Conservation of linear momentum applies to all isolated collisions. The coefficient of restitution (e) measures elasticity.", "v1f = [(m1 - e·m2)v1i + m2(1+e)v2i] / (m1 + m2)\nv2f = [m1(1+e)v1i + (m2 - e·m1)v2i] / (m1 + m2)", "e = 1 means perfectly elastic (billiard balls, no KE lost); e = 0 means perfectly inelastic (two lumps of clay sticking together).")
 }
+
 def show_info(concept_key):
     if concept_key not in INFO_DB: return
     name, defn, formula, analogy = INFO_DB[concept_key]
@@ -25,6 +27,7 @@ def show_info(concept_key):
     ttk.Label(win, text=name).pack()
     ttk.Label(win, text=f"Definition:\n{defn}\n\nFormula:\n{formula}\n\nAnalogy:\n{analogy}", wraplength=400, justify="left").pack()
     ttk.Button(win, text="Close", command=win.destroy).pack()
+
 class PAPSTApp:
     def __init__(self, root):
         self.root = root
@@ -246,6 +249,38 @@ class PAPSTApp:
         sim_trigger_frame.pack(fill="x")
         self.btn_col_sim = ttk.Button(sim_trigger_frame, text="Simulation", state="disabled", command=self.open_collision_simulation_window)
         self.btn_col_sim.pack(side="right")
+    def calculate_collision(self):
+        try:
+            m1_str, m2_str = self.col_entries["m1"].get().strip(), self.col_entries["m2"].get().strip()
+            if not m1_str or not m2_str: raise ValueError("Mass (m₁ and m₂) are required.")
+            m1, m2 = float(m1_str), float(m2_str)
+            x1, x2 = float(self.col_entries["x1"].get()), float(self.col_entries["x2"].get())
+            v1, v2 = float(self.col_entries["v1"].get()), float(self.col_entries["v2"].get())
+            t0, e = float(self.col_entries["t0"].get()), float(self.col_entries["e"].get())
+            if m1 <= 0 or m2 <= 0: raise ValueError("Masses must be positive.")
+            if not (0.0 <= e <= 1.0): raise ValueError("Coefficient of restitution (e) must lie between 0 and 1.")
+            rel_v, rel_x = v1 - v2, x2 - x1
+            if rel_x == 0: raise ValueError("Particles are already at the same position")
+            if (rel_x > 0 and rel_v <= 0) or (rel_x < 0 and rel_v >= 0): raise ValueError(f"No Collision")
+            dt_coll = rel_x / rel_v
+            t_coll = t0 + dt_coll
+            x_coll = x1 + v1 * dt_coll
+            v1f = ((m1 - e * m2) * v1 + m2 * (1 + e) * v2) / (m1 + m2)
+            v2f = (m1 * (1 + e) * v1 + (m2 - e * m1) * v2) / (m1 + m2)
+            ke_i = 0.5 * m1 * (v1**2) + 0.5 * m2 * (v2**2)
+            ke_f = 0.5 * m1 * (v1f**2) + 0.5 * m2 * (v2f**2)
+            ke_loss = ke_i - ke_f
+            self.col_out_labels["t_dt_1"].config(text=f"Time for Collision (Δt_coll): {dt_coll:.2f} s")
+            self.col_out_labels["t_dt_2"].config(text=f"Time of Collision (t_coll):  {t_coll:.2f} s")
+            self.col_out_labels["pos_1"].config(text=f"Position at Collision (x_coll): {x_coll:.2f} m")
+            self.col_out_labels["v1f_1"].config(text=f"Particle 1 Final Vel (v1f): {v1f:.2f} m/s")
+            self.col_out_labels["v2f_1"].config(text=f"Particle 2 Final Vel (v2f): {v2f:.2f} m/s")
+            self.col_out_labels["ke_1"].config(text=f"Initial System KE (KE_i):   {ke_i:.2f} J")
+            self.col_out_labels["ke_2"].config(text=f"Final System KE (KE_f):     {ke_f:.2f} J")
+            self.col_out_labels["loss_1"].config(text=f"Kinetic Energy Lost (ΔKE):  {ke_loss:.2f} J")
+            self.btn_col_sim.config(state="normal")
+            self.col_data = (m1, m2, x1, x2, v1, v2, t0, t_coll, dt_coll, v1f, v2f)
+        except ValueError as err: messagebox.showerror("Error", str(err))
     def open_simulation_window(self):
         r0, v0, a0, t0, tf = self.calc_data
         sim_win = tk.Toplevel(self.root)
@@ -272,45 +307,4 @@ class PAPSTApp:
         slider_frame.pack(fill="x")
         lbl_time = ttk.Label(slider_frame, text="Time t = 0.0s")
         lbl_time.pack()
-        slider = ttk.Scale(slider_frame, from_=t0, to=tf, orient="horizontal")
-        slider.pack(fill="x")
-        f_inputs.children["!button"] = ttk.Button(f_inputs, text="Apply", command=apply_sim_window)
-        f_inputs.children["!button"].pack(side="left")
-        slider.config(command=update_plot)
-        apply_sim_window()
-    def open_collision_simulation_window(self):
-        m1, m2, x1, x2, v1, v2, t0, t_coll, dt_coll, v1f, v2f = self.col_data
-        sim_win = tk.Toplevel(self.root)
-        sim_win.title("Simulation")
-        default_t_end = min(t_coll + max(2.0, dt_coll * 0.8), t0 + 10.0)
-        ctrl_frame = ttk.LabelFrame(sim_win, text="Simulation Control")
-        ctrl_frame.pack(fill="x")
-        ttk.Label(ctrl_frame, text=f"Impact Time t_coll = {t_coll:.2f}s | Impact Pos x_coll = {x1 + v1*(t_coll - t0):.2f}m").pack(side="left")
-        f_inputs = ttk.Frame(ctrl_frame)
-        f_inputs.pack(side="right")
-        ttk.Label(f_inputs, text="Sim Start:").pack(side="left")
-        e_sim_start = ttk.Entry(f_inputs, width=6)
-        e_sim_start.insert(0, str(t0))
-        e_sim_start.pack(side="left")
-        ttk.Label(f_inputs, text="Sim End:").pack(side="left")
-        e_sim_end = ttk.Entry(f_inputs, width=6)
-        e_sim_end.insert(0, f"{default_t_end:.2f}")
-        e_sim_end.pack(side="left")
-        plot_frame = ttk.Frame(sim_win)
-        plot_frame.pack(fill="both", expand=True)
-        fig, ax = plt.subplots()
-        canvas = FigureCanvasTkAgg(fig, master=plot_frame)
-        canvas.get_tk_widget().pack(fill="both", expand=True)
-        slider_frame = ttk.Frame(sim_win)
-        slider_frame.pack(fill="x")
-        lbl_time = ttk.Label(slider_frame, text=f"Time t = {t0:.2f}s")
-        lbl_time.pack()
-        slider = ttk.Scale(slider_frame, from_=t0, to=default_t_end, orient="horizontal")
-        slider.pack(fill="x")
-        ttk.Button(f_inputs, text="Apply", command=apply_col_sim_window).pack(side="left")
-        slider.config(command=update_track_plot)
-        apply_col_sim_window()
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = PAPSTApp(root)
-    root.mainloop()
+        slider = ttk
