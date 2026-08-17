@@ -1,4 +1,3 @@
-#Particle Analysis Physics Simulation Tool
 import math
 import tkinter as tk
 from tkinter import messagebox, ttk
