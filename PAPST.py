@@ -4,7 +4,6 @@ from tkinter import messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
-
 INFO_DB = {
     "pos": ("Final Position & Displacement", "Position vector locates the particle at time t_f. Displacement vector represents the straight-line change from initial to final position.", "r_f = r_0 + v_0·Δt + ½·a·(Δt)² | Δr = r_f - r_0", "Displacement is like drawing a straight arrow from start to finish on a map, regardless of the path taken."),
     "vel": ("Velocity & Average Velocity", "Final velocity is instantaneous speed and direction at t_f. Average velocity is total displacement divided by total elapsed time.", "v_f = v_0 + a·Δt | v_avg = Δr / Δt = ½(v_0 + v_f)", "Your speedometer shows instantaneous velocity, while your total trip distance divided by time gives average velocity."),
@@ -17,7 +16,6 @@ INFO_DB = {
     "power": ("Power (Final & Average)", "Rate at which work is performed or energy is transferred per unit time.", "P_f = F_net · v_f | P_avg = W / Δt", "A high-horsepower sports car transfers the same energy as a economy car, but does it in a fraction of the time."),
     "collision": ("1D Particle Collision & Restitution", "Conservation of linear momentum applies to all isolated collisions. The coefficient of restitution (e) measures elasticity.", "v1f = [(m1 - e·m2)v1i + m2(1+e)v2i] / (m1 + m2)\nv2f = [m1(1+e)v1i + (m2 - e·m1)v2i] / (m1 + m2)", "e = 1 means perfectly elastic (billiard balls, no KE lost); e = 0 means perfectly inelastic (two lumps of clay sticking together).")
 }
-
 def show_info(concept_key):
     if concept_key not in INFO_DB: return
     name, defn, formula, analogy = INFO_DB[concept_key]
@@ -26,7 +24,6 @@ def show_info(concept_key):
     ttk.Label(win, text=name).pack()
     ttk.Label(win, text=f"Definition:\n{defn}\n\nFormula:\n{formula}\n\nAnalogy:\n{analogy}", wraplength=400, justify="left").pack()
     ttk.Button(win, text="Close", command=win.destroy).pack()
-
 class PAPSTApp:
     def __init__(self, root):
         self.root = root
@@ -306,4 +303,4 @@ class PAPSTApp:
         slider_frame.pack(fill="x")
         lbl_time = ttk.Label(slider_frame, text="Time t = 0.0s")
         lbl_time.pack()
-        slider = ttk
+        slider = ttk.Sc
