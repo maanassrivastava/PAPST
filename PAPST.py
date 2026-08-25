@@ -303,4 +303,157 @@ class PAPSTApp:
         slider_frame.pack(fill="x")
         lbl_time = ttk.Label(slider_frame, text="Time t = 0.0s")
         lbl_time.pack()
-        slider = ttk.Sc
+        slider = ttk.Scale(slider_frame, from_=t0, to=tf, orient="horizontal")
+        slider.pack(fill="x")
+        def update_plot(val):
+            try:
+                t_sim_s, t_sim_e = float(e_sim_start.get()), float(e_sim_end.get())
+                if not (t0 <= t_sim_s < t_sim_e <= tf) or (t_sim_e - t_sim_s) > 10.0: return
+                t_curr = float(val)
+                if t_curr < t_sim_s: t_curr = t_sim_s
+                if t_curr > t_sim_e: t_curr = t_sim_e
+                lbl_time.config(text=f"Time t = {t_curr:.2f} s")
+                fig.clear()
+                t_arr = np.linspace(t_sim_s, t_sim_e, 200)
+                if self.current_dim == 1:
+                    ax = fig.add_subplot(111)
+                    x_arr = r0[0] + v0[0] * t_arr + 0.5 * a0[0] * (t_arr**2)
+                    x_curr = r0[0] + v0[0] * t_curr + 0.5 * a0[0] * (t_curr**2)
+                    ax.plot(t_arr, x_arr, color="blue", label="Position x(t)")
+                    ax.scatter([t_curr], [x_curr], color="red", s=60, zorder=5, label=f"t = {t_curr:.2f}s")
+                    ax.set_xlabel("Time (s)")
+                    ax.set_ylabel("X Position (m)")
+                    ax.set_title("Simulation")
+                    ax.grid(True)
+                    ax.legend()
+                elif self.current_dim == 2:
+                    ax = fig.add_subplot(111)
+                    x_arr = r0[0] + v0[0] * t_arr + 0.5 * a0[0] * (t_arr**2)
+                    y_arr = r0[1] + v0[1] * t_arr + 0.5 * a0[1] * (t_arr**2)
+                    x_curr = r0[0] + v0[0] * t_curr + 0.5 * a0[0] * (t_curr**2)
+                    y_curr = r0[1] + v0[1] * t_curr + 0.5 * a0[1] * (t_curr**2)
+                    ax.plot(x_arr, y_arr, color="blue", label="Path Trajectory")
+                    ax.scatter([x_curr], [y_curr], color="red", s=60, zorder=5, label=f"Pos at t={t_curr:.2f}s")
+                    ax.set_xlabel("X Position (m)")
+                    ax.set_ylabel("Y Position (m)")
+                    ax.set_title("Simulation")
+                    ax.grid(True)
+                    ax.legend()
+                else:
+                    ax = fig.add_subplot(111, projection="3d")
+                    x_arr = r0[0] + v0[0] * t_arr + 0.5 * a0[0] * (t_arr**2)
+                    y_arr = r0[1] + v0[1] * t_arr + 0.5 * a0[1] * (t_arr**2)
+                    z_arr = r0[2] + v0[2] * t_arr + 0.5 * a0[2] * (t_arr**2)
+                    x_curr = r0[0] + v0[0] * t_curr + 0.5 * a0[0] * (t_curr**2)
+                    y_curr = r0[1] + v0[1] * t_curr + 0.5 * a0[1] * (t_curr**2)
+                    z_curr = r0[2] + v0[2] * t_curr + 0.5 * a0[2] * (t_curr**2)
+                    ax.plot(x_arr, y_arr, z_arr, color="purple", label="3D Path")
+                    ax.scatter([x_curr], [y_curr], [z_curr], color="red", s=60, zorder=5, label=f"Pos at t={t_curr:.2f}s")
+                    ax.set_xlabel("X (m)")
+                    ax.set_ylabel("Y (m)")
+                    ax.set_zlabel("Z (m)")
+                    ax.set_title("Simulation")
+                    ax.legend()
+                canvas.draw()
+            except Exception: pass
+        def apply_sim_window():
+            try:
+                t_sim_s, t_sim_e = float(e_sim_start.get()), float(e_sim_end.get())
+                if not (t0 <= t_sim_s < t_sim_e <= tf):
+                    messagebox.showerror("Window Error", f"Simulation window [{t_sim_s}, {t_sim_e}] must be within calculated bounds [{t0}, {tf}].")
+                    return
+                if (t_sim_e - t_sim_s) > 10.0:
+                    messagebox.showerror("Window Error", "Simulation duration cannot exceed 10 seconds at a time.")
+                    return
+                slider.config(from_=t_sim_s, to=t_sim_e)
+                slider.set(t_sim_s)
+                update_plot(t_sim_s)
+            except ValueError: messagebox.showerror("Input Error", "Please enter valid numbers for time range.")
+        f_inputs.children["!button"] = ttk.Button(f_inputs, text="Apply", command=apply_sim_window)
+        f_inputs.children["!button"].pack(side="left")
+        slider.config(command=update_plot)
+        apply_sim_window()
+    def open_collision_simulation_window(self):
+        m1, m2, x1, x2, v1, v2, t0, t_coll, dt_coll, v1f, v2f = self.col_data
+        sim_win = tk.Toplevel(self.root)
+        sim_win.title("Simulation")
+        default_t_end = min(t_coll + max(2.0, dt_coll * 0.8), t0 + 10.0)
+        ctrl_frame = ttk.LabelFrame(sim_win, text="Simulation Control")
+        ctrl_frame.pack(fill="x")
+        ttk.Label(ctrl_frame, text=f"Impact Time t_coll = {t_coll:.2f}s | Impact Pos x_coll = {x1 + v1*(t_coll - t0):.2f}m").pack(side="left")
+        f_inputs = ttk.Frame(ctrl_frame)
+        f_inputs.pack(side="right")
+        ttk.Label(f_inputs, text="Sim Start:").pack(side="left")
+        e_sim_start = ttk.Entry(f_inputs, width=6)
+        e_sim_start.insert(0, str(t0))
+        e_sim_start.pack(side="left")
+        ttk.Label(f_inputs, text="Sim End:").pack(side="left")
+        e_sim_end = ttk.Entry(f_inputs, width=6)
+        e_sim_end.insert(0, f"{default_t_end:.2f}")
+        e_sim_end.pack(side="left")
+        plot_frame = ttk.Frame(sim_win)
+        plot_frame.pack(fill="both", expand=True)
+        fig, ax = plt.subplots()
+        canvas = FigureCanvasTkAgg(fig, master=plot_frame)
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        slider_frame = ttk.Frame(sim_win)
+        slider_frame.pack(fill="x")
+        lbl_time = ttk.Label(slider_frame, text=f"Time t = {t0:.2f}s")
+        lbl_time.pack()
+        slider = ttk.Scale(slider_frame, from_=t0, to=default_t_end, orient="horizontal")
+        slider.pack(fill="x")
+        t_0_val = t0
+        def update_track_plot(val):
+            try:
+                t_sim_s, t_sim_e = float(e_sim_start.get()), float(e_sim_end.get())
+                t_curr = float(val)
+                if t_curr < t_sim_s: t_curr = t_sim_s
+                if t_curr > t_sim_e: t_curr = t_sim_e
+                lbl_time.config(text=f"Time t = {t_curr:.2f} s")
+                if t_curr <= t_coll: pos1, pos2 = x1 + v1 * (t_curr - t_0_val), x2 + v2 * (t_curr - t_0_val)
+                else:
+                    x_coll = x1 + v1 * (t_coll - t_0_val)
+                    pos1, pos2 = x_coll + v1f * (t_curr - t_coll), x_coll + v2f * (t_curr - t_coll)
+                ax.clear()
+                all_t = np.linspace(t_sim_s, t_sim_e, 50)
+                p1_all = np.where(all_t <= t_coll, x1 + v1 * (all_t - t_0_val), (x1 + v1 * (t_coll - t_0_val)) + v1f * (all_t - t_coll))
+                p2_all = np.where(all_t <= t_coll, x2 + v2 * (all_t - t_0_val), (x1 + v1 * (t_coll - t_0_val)) + v2f * (all_t - t_coll))
+                x_min, x_max = min(np.min(p1_all), np.min(p2_all)) - 2.0, max(np.max(p1_all), np.max(p2_all)) + 2.0
+                ax.axhline(0, color="gray", linewidth=2, linestyle="--")
+                x_impact = x1 + v1 * (t_coll - t_0_val)
+                ax.axvline(x=x_impact, color="red", linestyle=":", alpha=0.6, label=f"Impact Point ({x_impact:.1f} m)")
+                ax.scatter([pos1], [0], color="blue", s=250, zorder=5, label=f"P1 (m1={m1}kg) @ {pos1:.2f}m")
+                ax.scatter([pos2], [0], color="green", s=250, zorder=5, label=f"P2 (m2={m2}kg) @ {pos2:.2f}m")
+                v1_curr = v1 if t_curr <= t_coll else v1f
+                v2_curr = v2 if t_curr <= t_coll else v2f
+                ax.quiver(pos1, 0, v1_curr, 0, angles="xy", scale_units="xy", scale=1, color="blue", width=0.008, headwidth=4)
+                ax.quiver(pos2, 0, v2_curr, 0, angles="xy", scale_units="xy", scale=1, color="green", width=0.008, headwidth=4)
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(-1, 1)
+                ax.set_yticks([])
+                ax.set_xlabel("1D Track Position X (m)")
+                ax.set_title("1D Collision Simulation")
+                ax.grid(True, axis="x")
+                ax.legend(loc="upper right")
+                canvas.draw()
+            except Exception: pass
+        def apply_col_sim_window():
+            try:
+                t_sim_s, t_sim_e = float(e_sim_start.get()), float(e_sim_end.get())
+                if t_sim_s >= t_sim_e:
+                    messagebox.showerror("Window Error", "Sim Start must be less than Sim End.")
+                    return
+                if (t_sim_e - t_sim_s) > 10.0:
+                    messagebox.showerror("Window Error", "Simulation window cannot exceed 10 seconds at a time.")
+                    return
+                slider.config(from_=t_sim_s, to=t_sim_e)
+                slider.set(t_sim_s)
+                update_track_plot(t_sim_s)
+            except ValueError: messagebox.showerror("Input Error", "Please enter valid numbers for time range.")
+        ttk.Button(f_inputs, text="Apply", command=apply_col_sim_window).pack(side="left")
+        slider.config(command=update_track_plot)
+        apply_col_sim_window()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PAPSTApp(root)
+    root.mainloop()
